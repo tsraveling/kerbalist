@@ -1,5 +1,5 @@
 print(ship:name + " ready, AG9 to begin.").
-download_and_run("lib/test-utils.ks").
+download_and_run("lib/testing.ks").
 wait until ag9.
 
 print("Grasshopper I starting launch script in 3...").

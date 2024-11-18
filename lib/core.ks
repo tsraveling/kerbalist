@@ -39,6 +39,7 @@ function notify {
     hudtext(msg, 5, 2, 50, yellow, true).
 }
 
+// add_alarm_if_needed(what: string, seconds, message: message, notes: notes="")
 function add_alarm_if_needed {
     parameter what. // string: what is this alarm?
     parameter seconds. // will add an alarm if at least 30s
