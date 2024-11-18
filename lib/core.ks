@@ -1,16 +1,17 @@
 // download(): will download a file from the mainframe
 function download {
     parameter filePath.
+    parameter localPath is filePath.
     if not exists("0:/" + filePath) {
         print "ERROR: " + filePath + " does not exist on mainframe.".
         return.
     }
-    copyPath("0:/" + filePath, "1:/" + filePath).
+    copyPath("0:/" + filePath, "1:/" + localPath).
     print("Copied " + filePath + " to local storage.").
 }
 
 // load(filePath, force): This will download and run a file from the mainframe, loading any functions into memory
-function load {
+function download_and_run {
     parameter filePath.
     parameter force is false.
 
@@ -52,25 +53,25 @@ function add_alarm_if_needed {
 
 function call_home {
     if not homeConnection:isconnected {
-        print(vessel:name + " is not connected to the KSC mainframe; signal failed.").
+        print(ship:name + " is not connected to the KSC mainframe; signal failed.").
         return false.
     }
-    print("KSC transmitting to " + vessel:name + ", stand by for " + homeConnection:delay + "s signal delay ...").
-    add_alarm_if_needed("KSC delay", controlConnection:delay, vessel:name + " receives KSC automation package").
+    print("KSC transmitting to " + ship:name + ", stand by for " + homeConnection:delay + "s signal delay ...").
+    add_alarm_if_needed("KSC delay", controlConnection:delay, ship:name + " receives KSC automation package").
     wait homeConnection:delay.
-    print(vessel:name + " signal received. Executing automation payload ...").
+    print(ship:name + " signal received. Executing automation payload ...").
     return true.
 }
 
 function call_control {
     if not controlConnection:isconnected {
-        print(vessel:name + " is not connected to KSC or a controlled vessel.").
+        print(ship:name + " is not connected to KSC or a controlled vessel.").
         return false.
     }
     // TODO: Test this w/ KSC
-    print(controlConnection:destination + " transmitting to " + vessel:name + ", stand by for " + homeConnection:delay + "s signal delay ...").
-    add_alarm_if_needed("Control delay", controlConnection:delay, vessel:name + " receives control package").
+    print(controlConnection:destination + " transmitting to " + ship:name + ", stand by for " + homeConnection:delay + "s signal delay ...").
+    add_alarm_if_needed("Control delay", controlConnection:delay, ship:name + " receives control package").
     wait homeConnection:delay.
-    print(vessel:name + " signal received. Executing control payload ...").
+    print(ship:name + " signal received. Executing control payload ...").
     return true.
 }
