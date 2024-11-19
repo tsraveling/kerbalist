@@ -12,59 +12,63 @@ function stage_if_empty {
 
 function ascend {
     parameter bearing is 90.
-    parameter target_alt is 80.
+    parameter target_alt is 80000.
 
     // TODO: make this smarter.
-    print("Standard ascent stage beginning at " + altitude + "m.").
+    print "Standard ascent stage beginning at " + altitude + "m.".
     lock throttle to 1.
     until apoapsis > target_alt + 200 {
         stage_if_empty().
-        if altitude > 60 {
-            print "Ascent angle: 25." at (0, 0).
+        if altitude > 60000 {
             lock steering to heading(bearing, 25).
-        } else if altitude > 50 {
-            print "Ascent angle: 35." at (0, 0).
+        } else if altitude > 50000 {
             lock steering to heading(bearing, 35).
-        } else if altitude > 40 {
-            print "Ascent angle: 45." at (0, 0).
+        } else if altitude > 40000 {
             lock steering to heading(bearing, 45).
-        } else if altitude > 30 {
-            print "Ascent angle: 55." at (0, 0).
+        } else if altitude > 30000 {
             lock steering to heading(bearing, 55).
-        } else if altitude > 20 {
-            print "Ascent angle: 65." at (0, 0).
+        } else if altitude > 20000 {
             lock steering to heading(bearing, 65).
-        } else if altitude > 60 {
-            print "Ascent angle: 75." at (0, 0).
+        } else if altitude > 10000 {
             lock steering to heading(bearing, 75).
         } else {
-            print "Ascent angle: 85." at (0, 0).
             lock steering to heading(bearing, 85).
         }
+        wait 0.2.
     }
 
-    print("Ascent stage ended; apoapsis now at " + ship:apoapsis).
+    print "Ascent stage ended; apoapsis now at " + ship:apoapsis.
+    lock throttle to 0.0.
 }
 
-function orbit {
+function complete_orbit {
     parameter bearing is 90.
 
-    if (ship:apoapsis < 70) {
+    print "Preparing to complete orbit. Current altitude is " + ship:altitude + ", current apoapsis is " + ship:apoapsis.
+    lock throttle to 0.
+
+    if (ship:apoapsis < 70000) {
         // TODO: Handle this more gracefully if e.g. on the Mun.
-        print("ERR: apoapsis is only " + ship:apoapsis + "m, orbit impossible! Returning.").
+        print "ERR: apoapsis is only " + ship:apoapsis + "m, orbit impossible! Returning.".
         return.
     }
 
     set target_periapsis to ship:apoapsis.
 
-    add_alarm_if_needed("Apoapsis", eta:apoapsis - 25, ship:name + " nearing apoapsis!"). 
+    print "Waiting " + (eta:apoapsis - 20) + "s until burn ...".
     wait until (eta:apoapsis < 20).
     
-    lock steering to heading(bearing, 0).
+    lock steering to heading(bearing, 5).
     lock throttle to 1.
 
     until periapsis >= target_periapsis {
         stage_if_empty().
+        if eta:apoapsis > 20 and eta:apoapsis < 40 {
+            lock throttle to 0.
+            wait until eta:apoapsis < 15.
+            lock throttle to 1.
+        }
+        wait 0.2.
     }
 }
 
@@ -80,7 +84,7 @@ function circularize_up {
     if ship:apoapsis < tar_alt {
         lock steering to prograde.
         lock throttle to 0.
-        add_alarm_if_needed("Periapsis", eta:apoapsis - 25, ship:name + " nearing periapsis!"). 
+        print("Waiting " + (eta:periapsis - 20) + "s until burn ...").
         wait until eta:periapsis < 20.
         lock throttle to 1.
         until apoapsis >= tar_alt {
@@ -90,8 +94,9 @@ function circularize_up {
 
     // Raise periapsis if needed
     lock throttle to 0.
-    add_alarm_if_needed("Apoapsis", eta:apoapsis - 25, ship:name + " nearing apoapsis!"). 
+    print "Apoapsis in " + eta:apoapsis + "s, will burn at A-20.".
     wait until eta:apoapsis < 20.
+
     lock steering to prograde.
     until periapsis >= tar_alt {
         stage_if_empty().
@@ -112,14 +117,14 @@ function ascend_solids {
     // Solid booster ascent
     stage.
     wait until maxThrust = 0.
-    print("Solid boosters expended, staging.").
-    
-    // Release
-    print("Releasing solid boosters.").
+    print("Waiting 10 to cool down ...").
+    wait 10.
+    print("Decoupling solid boosters.").
     stage.
-    wait 1.
+    wait 2.
     print("Flying clear.").
     lock throttle to 0.2.
     wait 2.
     print("Solid ascent stage complete.").
+    return 1.
 }

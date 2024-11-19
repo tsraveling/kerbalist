@@ -39,26 +39,12 @@ function notify {
     hudtext(msg, 5, 2, 50, yellow, true).
 }
 
-// add_alarm_if_needed(what: string, seconds, message: message, notes: notes="")
-function add_alarm_if_needed {
-    parameter what. // string: what is this alarm?
-    parameter seconds. // will add an alarm if at least 30s
-    parameter message. // the alarm message
-    parameter notes is "". // the alarm notes
-
-    if seconds > 30 {
-        print(what + " is more thant 30s out; creating an alarm for 10s prior..").
-        addAlarm("raw", time:seconds + homeConnection:delay - 10, message, notes).
-    }
-}
-
 function call_home {
     if not homeConnection:isconnected {
         print(ship:name + " is not connected to the KSC mainframe; signal failed.").
         return false.
     }
     print("KSC transmitting to " + ship:name + ", stand by for " + homeConnection:delay + "s signal delay ...").
-    add_alarm_if_needed("KSC delay", controlConnection:delay, ship:name + " receives KSC automation package").
     wait homeConnection:delay.
     print(ship:name + " signal received. Executing automation payload ...").
     return true.
@@ -71,7 +57,6 @@ function call_control {
     }
     // TODO: Test this w/ KSC
     print(controlConnection:destination + " transmitting to " + ship:name + ", stand by for " + homeConnection:delay + "s signal delay ...").
-    add_alarm_if_needed("Control delay", controlConnection:delay, ship:name + " receives control package").
     wait homeConnection:delay.
     print(ship:name + " signal received. Executing control payload ...").
     return true.
