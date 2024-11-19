@@ -1,6 +1,6 @@
 function stage_if_empty {
     if maxThrust = 0 {
-        print("Staging.").
+        log_event("STAGING.").
         lock throttle to 0.
         stage.
         wait 0.5.
@@ -12,37 +12,47 @@ function stage_if_empty {
 
 function ascend {
     parameter bearing is 90.
-    parameter target_alt is 80.
+    parameter target_alt is 80000.
+    parameter start_alt is 5000.
+    parameter aggression is 1.
 
-    // TODO: make this smarter.
-    print("Standard ascent stage beginning at " + altitude + "m.").
+    // Either start the turn at the given start altitude, or else the current alt if higher than that.
+    local base to max(ship:altitude, start_alt).
+    local diff to target_alt - start_alt.
+    local ascent_angle to 90.
+
+    clearScreen.
+    print "ASCENT STAGE" at (0, 1).
+    print "------------" at (0, 2).
+    
+    lock steering to heading(bearing, ascent_angle).
     lock throttle to 1.
     until apoapsis > target_alt + 200 {
+
         stage_if_empty().
-        if altitude > 60 {
-            print "Ascent angle: 25." at (0, 0).
-            lock steering to heading(bearing, 25).
-        } else if altitude > 50 {
-            print "Ascent angle: 35." at (0, 0).
-            lock steering to heading(bearing, 35).
-        } else if altitude > 40 {
-            print "Ascent angle: 45." at (0, 0).
-            lock steering to heading(bearing, 45).
-        } else if altitude > 30 {
-            print "Ascent angle: 55." at (0, 0).
-            lock steering to heading(bearing, 55).
-        } else if altitude > 20 {
-            print "Ascent angle: 65." at (0, 0).
-            lock steering to heading(bearing, 65).
-        } else if altitude > 60 {
-            print "Ascent angle: 75." at (0, 0).
-            lock steering to heading(bearing, 75).
-        } else {
-            print "Ascent angle: 85." at (0, 0).
-            lock steering to heading(bearing, 85).
-        }
+
+        print "PARAMS:          " + base + "m TO " + target_alt + "m, AGGR: " + aggression at (0, 4).
+        
+        print "STAGE:           " + stage:number at (0,6).
+        print "STAGE DELTA-V:   " + stage:deltav at (0,7).
+        print "MAX THRUST:      " + ship:maxthrust at (0,8).
+        print "ALT:             " + ship:altitude at (0,9).
+        print "APOAPSIS:        " + ship:apoapsis at (0,10).
+        print "ASCENT ANGLE:    " + ascent_angle at (0,11).
+
+        print "ETA TO APOAPSIS: " + eta:apoapsis at (0,13).
+
+        // 1. Get height above the base / start altitude.
+        // 2. Divide that by the difference between base and target to get the percentage of
+        //    our progress to the target altitude.
+        // 3. Use that to calculate our current angle as a linear progression from 0 to 90 based on alt.
+        // 4. Modify with aggression: > 1 = more horizontal, < 1 = more vertical.
+        set ascent_angle to min(90 - ((((ship:altitude - base) / diff) * 90) * aggression), 0).
+
+        wait 0.1.
     }
 
+    clearScreen.
     print("Ascent stage ended; apoapsis now at " + ship:apoapsis).
 }
 
@@ -55,21 +65,55 @@ function orbit {
         return.
     }
 
-    set target_periapsis to ship:apoapsis.
+    clearScreen.
+    print "ORBIT STAGE" at (0, 1).
+    print "------------" at (0, 2).
 
-    add_alarm_if_needed("Apoapsis", eta:apoapsis - 25, ship:name + " nearing apoapsis!"). 
-    wait until (eta:apoapsis < 20).
-    
-    lock steering to heading(bearing, 0).
-    lock throttle to 1.
-
-    until periapsis >= target_periapsis {
-        stage_if_empty().
+    when not bodyAtmosphere:exists OR eta:apoapsis < 40 OR ship:altitude >= bodyAtmosphere:height then {
+        log_event("Aligning to horizon for burn prep.", "AUTOPILOT").
+        lock steering to heading(bearing, 0).
     }
+
+    local tar_throttle to 0.0.
+    lock throttle to tar_throttle.
+    
+    until ship:status = "ORBIT" {
+
+        if eta:apoapsis < 20 OR verticalSpeed < 0 {
+            set tar_throttle to 1.0.
+        } else {
+            set tar_throttle to 0.0.
+        }
+        stage_if_empty().
+
+        print "PARAMS:          BEARING is " + bearing at (0, 4).
+        
+        if tar_throttle > 0 {
+            print "=> BURNING:         " + tar_throttle at (0,6).
+        } else {
+            print "---------------------->" at (0,6).
+        }
+        print "STAGE:           " + stage:number at (0,7).
+        print "STAGE DELTA-V:   " + stage:deltav at (0,8).
+        print "ALT:             " + ship:altitude at (0,9).
+        print "APOAPSIS:        " + ship:apoapsis at (0,10).
+        print "ETA TO APOAPSIS: " + eta:apoapsis at (0,11).
+        print "PERIAPSIS:       " + alt:periapsis at (0, 12).
+
+        wait 0.1.
+    }
+
+    clearScreen.
+    print "Orbit achieved.".
+    print "Apoapsis: " + alt:apoapsis.
+    print "Periapsis: " + alt:periapsis.
+    print "Remaining delta-v: " + ship:deltav.
 }
 
 function circularize_up {
     parameter tar_alt is 100.
+
+    print "BEGINNING CIRCULARIZATION.".
     
     if ship:apoapsis > tar_alt and ship:periapsis > tar_alt {
         print("ERR: orbit is already above target of " + tar_alt + "m, returning.").
@@ -80,8 +124,10 @@ function circularize_up {
     if ship:apoapsis < tar_alt {
         lock steering to prograde.
         lock throttle to 0.
-        add_alarm_if_needed("Periapsis", eta:apoapsis - 25, ship:name + " nearing periapsis!"). 
+        print "Waiting until periapsis for first lifting burn.".
+        add_alarm_if("Periapsis", eta:periapsis, 25).
         wait until eta:periapsis < 20.
+        print "Approaching periapsis, burning.".
         lock throttle to 1.
         until apoapsis >= tar_alt {
             stage_if_empty().
@@ -90,8 +136,10 @@ function circularize_up {
 
     // Raise periapsis if needed
     lock throttle to 0.
-    add_alarm_if_needed("Apoapsis", eta:apoapsis - 25, ship:name + " nearing apoapsis!"). 
+    print "Waiting for apoapsis to complete circularization burn.".
+    add_alarm_if("Apoapsis", eta:apoapsis, 25).
     wait until eta:apoapsis < 20.
+    print "Approaching apoapsis, initating burn.".
     lock steering to prograde.
     until periapsis >= tar_alt {
         stage_if_empty().
@@ -101,7 +149,27 @@ function circularize_up {
 function ascend_solids {
     parameter bearing is 90.
 
-    print("Beginning solid stage ascent.").
+    clearScreen.
+    print "SOLID ASCENT STAGE" at (0, 1).
+    print "------------" at (0, 2).
+
+    // Solid booster ascent
+    stage.
+    
+    until maxThrust = 0 {
+
+        print "PARAMS:          BEARING IS " + bearing at (0, 4).
+        
+        print "STAGE:           " + stage:number at (0,6).
+        print "STAGE DELTA-V:   " + stage:deltav at (0,7).
+        print "MAX THRUST:      " + ship:maxthrust at (0,8).
+        print "ALT:             " + ship:altitude at (0,9).
+        print "APOAPSIS:        " + ship:apoapsis at (0,10).
+        print "ETA TO APOAPSIS: " + eta:apoapsis at (0,12).
+
+        wait 0.1.
+    }
+
 
     lock steering to heading(bearing, 85). // Lean just a little bit
     
@@ -109,12 +177,9 @@ function ascend_solids {
     lock throttle to 0.
     set ship:control:pilotmainthrottle to 0.
     
-    // Solid booster ascent
-    stage.
-    wait until maxThrust = 0.
-    print("Solid boosters expended, staging.").
     
     // Release
+    clearScreen.
     print("Releasing solid boosters.").
     stage.
     wait 1.
