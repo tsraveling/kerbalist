@@ -63,6 +63,9 @@ function complete_orbit {
 
     until periapsis >= target_periapsis {
         stage_if_empty().
+        // TODO: Check vertical speed etc. problem is the runaway
+        // apoapsis. This becomes the periapsis and then we're 
+        // stuck on an exit trajectory.
         if eta:apoapsis > 20 and eta:apoapsis < 40 {
             lock throttle to 0.
             wait until eta:apoapsis < 15.
