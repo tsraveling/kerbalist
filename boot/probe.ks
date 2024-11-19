@@ -6,9 +6,9 @@ if not exists("1:/lib/core.ks") {
 }
 runOncePath("lib/core.ks").
 
-// Check for ship autoload
+// Check for ship autoload -- load and rewrite if still in prelaunch (for quick debugging)
 local auto_file to "autoload/" + ship:name + ".ks".
-if exists("0:/" + auto_file) and not exists("1:/" + auto_file) {
+if exists("0:/" + auto_file) and ship:status = "PRELAUNCH" {
     print("Autoloading file ...").
 
     // Call the nearest control node, await signal delay, then fire code
