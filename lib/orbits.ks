@@ -69,18 +69,22 @@ function orbit {
     print "ORBIT STAGE" at (0, 1).
     print "------------" at (0, 2).
 
+    local ascent_angle to 0.
     when not bodyAtmosphere:exists OR eta:apoapsis < 40 OR ship:altitude >= bodyAtmosphere:height then {
         log_event("Aligning to horizon for burn prep.", "AUTOPILOT").
-        lock steering to heading(bearing, 0).
+        lock steering to heading(bearing, ascent_angle).
     }
 
     local tar_throttle to 0.0.
     lock throttle to tar_throttle.
     
-    until ship:status = "ORBIT" {
+    until ship:status = "ORBIT" AND (not bodyAtmosphere:exists OR alt:periapsis >= bodyAtmosphere:height) {
 
         if eta:apoapsis < 20 OR verticalSpeed < 0 {
             set tar_throttle to 1.0.
+            if verticalSpeed < 0 {
+                set ascent_angle to 5.
+            }
         } else {
             set tar_throttle to 0.0.
         }
@@ -99,6 +103,11 @@ function orbit {
         print "APOAPSIS:        " + ship:apoapsis at (0,10).
         print "ETA TO APOAPSIS: " + eta:apoapsis at (0,11).
         print "PERIAPSIS:       " + alt:periapsis at (0, 12).
+
+        print "CURRENT BODY:    " + bodyAtmosphere:body at (0, 14).
+        if (bodyAtmosphere:exists) {
+            print "ATMO HEIGHT:     " + bodyAtmosphere:height at (0, 15).
+        }
 
         wait 0.1.
     }
