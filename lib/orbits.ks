@@ -75,22 +75,44 @@ function complete_orbit {
     print "ORBIT STAGE" at (0, 1).
     print "------------" at (0, 2).
 
-    local ascent_angle to 0.
-    when eta:apoapsis < 40 OR ship:dynamicpressure = 0 then {
-        log_event("Aligning to horizon for burn prep.", "AUTOPILOT").
-        lock steering to heading(bearing, ascent_angle).
+    lock orbit_speed to ship:velocity:orbit:mag.
+
+    // Wait until we exit atmo, if necessary
+    until ship:dynamicpressure = 0 {
+        print "LEAVING ATMO" at (0, 4).
+        print "ALT:           " + ship:altitude at (0, 6).
+        print "ORBIT SPD:     " + orbit_speed at (0, 7).
+        print "APOAPSIS:      " + ship:apoapsis at (0, 8).
     }
+
+    // Calculate burn required
+    local tar_alt to apoapsis:altitude.
+    local target_speed to sqrt(ship:body:mu / (tar_alt + ship:body:radius)).
+
+    // Aim at the horizon
+    log_event("Leaving atmosphere, aiming at horizon for circularization in " + eta:apoapsis + "s.").
+    local ascent_angle to 0.
+    lock steering to heading(bearing, ascent_angle).
 
     local tar_throttle to 0.0.
     lock throttle to tar_throttle.
-    local atmo to bodyAtmosphere(ship:body:name).
-    
-    until ship:status = "ORBIT" AND (not atmo:exists OR alt:periapsis >= atmo:height) {
+
+    // Calculate burn
+    lock deltav_req to orbit_speed - target_speed.
+    local current_accel to ship:availableThrust / ship:mass.
+    local burn_time to deltav_req / current_accel.
+    if stage:deltav < deltav_req {
+        log_error("Stage does not have enough deltaV to circularize, adding 20s.").
+        set burn_time to burn_time + 20.
+        // TODO: Account for next stage here.
+    }
+
+    until deltav_req <= 0 {
 
         // TODO: Add special case: if ship:altitude < atmo:height, we are dipping. keep burning
         // until apoapsis is higher, wait until apoapsis, THEN burn to circularize. We have to account
         // for the switch!
-        if eta:apoapsis < 20 OR verticalSpeed < 0 {
+        if eta:apoapsis < (burn_time / 2) OR verticalSpeed < 0 {
             set tar_throttle to 1.0.
             if verticalSpeed < 0 {
                 set ascent_angle to 5.
@@ -102,23 +124,14 @@ function complete_orbit {
 
         print "PARAMS:          BEARING is " + bearing at (0, 4).
         
-        if tar_throttle > 0 {
-            print "=> BURNING:         " + tar_throttle at (0,6).
-        } else {
-            print "---------------------->" at (0,6).
-        }
-        print "STAGE:           " + stage:number at (0,7).
+        print "DELTA-V LEFT:    " + deltav_req at (0,6).
+
         print "STAGE DELTA-V:   " + stage:deltav at (0,8).
         print "ALT:             " + ship:altitude at (0,9).
         print "APOAPSIS:        " + ship:apoapsis at (0,10).
         print "ETA TO APOAPSIS: " + eta:apoapsis at (0,11).
         print "PERIAPSIS:       " + alt:periapsis at (0, 12).
-        print "PRESSURE:        " + ship:dynamicpressure at (0, 13).
-        print "CURRENT BODY:    " + ship:body:name at (0, 14).
-        if (atmo:exists) {
-            print "ATMO HEIGHT:     " + atmo:height at (0, 15).
-        }
-
+        
         wait 0.1.
     }
 
@@ -127,12 +140,15 @@ function complete_orbit {
     print "Apoapsis: " + alt:apoapsis.
     print "Periapsis: " + alt:periapsis.
     print "Remaining delta-v: " + ship:deltav.
+
+    unlock deltav_req.
+    unlock orbit_speed.
 }
 
-function circularize_up {
+function raise_orbit {
     parameter tar_alt is 100.
 
-    print "BEGINNING CIRCULARIZATION.".
+    print "BEGINNING ORBIT RAISE.".
     
     if ship:apoapsis > tar_alt and ship:periapsis > tar_alt {
         print("ERR: orbit is already above target of " + tar_alt + "m, returning.").

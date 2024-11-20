@@ -6,32 +6,36 @@ if not exists("1:/lib/core.ks") {
 }
 runOncePath("lib/core.ks").
 
-// Check for ship autoload -- load and rewrite if still in prelaunch (for quick debugging)
-local auto_file to "autoload/" + ship:name + ".ks".
+// Check for ship launch scripts -- load and rewrite if still in prelaunch (for quick debugging)
+local auto_file to "launch/" + ship:name + ".ks".
 if exists("0:/" + auto_file) and ship:status = "PRELAUNCH" {
-    print("Autoloading file ...").
+    print("Loading launch script ...").
 
-    // Call the nearest control node, await signal delay, then fire code
-    if call_home() {
-        download(auto_file, "start.ks").
-        switch to 1.
-        run "start.ks".
-    }
+    // Load up and run the launch script
+    download(auto_file, "start.ks").
+    switch to 1.
+    run "start.ks".
+
 } else {
     print("No new commands found, settling in.").
 }
 
-// Check for commands
+// Check for commands (WILL RUN ONLY AFTER LAUNCH)
 local cmd_file to "cmd/" + ship:name + ".ks".
 if exists(cmd_file) {
     print("KSC command file found, transmitting ...").
 
     // Call the nearest control node, await signal delay, then fire code
-    if call_control() {
-        download_and_run(cmd_file).
-        deletePath("0:/" + cmd_file).
-        deletePath("1:/" + cmd_file).
-        print("Automation executed; powering down.").
+    if ship:status = "PRELAUNCH" {
+        download(cmd_file, "cmd.ks").
+    } else {
+        // Maybe add option to download via interface?
+        if call_control() {
+            download(cmd_file, "cmd.ks").
+            print("New script downloaded; settling in.").
+        }
+
+        run "cmd.ks".
     }
 } else {
     print("No new commands found, settling in.").
