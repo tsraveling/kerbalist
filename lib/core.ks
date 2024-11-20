@@ -15,7 +15,7 @@ function download_and_run {
     parameter filePath.
     parameter force is false.
 
-    if force and exists("1:/" + filePath) {
+    if not force and exists("1:/" + filePath) {
         print filePath + " already local; executing.".
         switch to 1.
         runPath(filePath).
@@ -26,6 +26,7 @@ function download_and_run {
         print "ERROR: " + filePath + " does not exist on mainframe.".
         return.
     }
+    
     copyPath("0:/" + filePath, "1:/" + filePath).
     print("Copied " + filePath + " to local storage and executing.").
     switch to 1.
