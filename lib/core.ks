@@ -101,26 +101,29 @@ function bind_buttons {
     }
 }
 
-local clear_line to "                                    ".
+function clear_line {
+    parameter y.
+    print "                                    " at (0, y).
+}
 
 // This will display at the bottom of the log screen.
 function log_event {
     parameter msg.
-    print "clear_line" at (0, 18).
+    clear_line(18).
     print "[#FFFF00]" + msg at (0, 18).
 }
 
 // This will log an error at the bottom of the log screen
 function log_error {
     parameter msg.
-    print "clear_line" at (0, 18).
+    clear_line(18).
     print "[#FF0000]" + msg at (0, 18).
 }
 
 // This will log an error at the bottom of the log screen
 function log_win {
     parameter msg.
-    print "clear_line" at (0, 18).
+    clear_line(18).
     print "[#99FF00]" + msg at (0, 18).
 }
 
@@ -129,4 +132,17 @@ function wait_for_go {
     set AG10 to true.
     print "[#FFFFFF]WAIT FOR GO." at (5, 1).
     wait until not AG10.
+}
+
+function fmt {
+    parameter num is 0.
+    return round(num, 2).
+}
+
+function output {
+    parameter label is "VALUE".
+    parameter val is 0.
+    parameter y is 0.
+    print label + ":" at (0, y).
+    print "[#FFFFFF]" + fmt(val) at (17, y).
 }

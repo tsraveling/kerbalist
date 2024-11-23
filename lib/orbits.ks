@@ -34,15 +34,12 @@ function ascend {
 
         print "PARAMS:          " + base + "m TO " + target_alt + "m, AGGR: " + aggression at (0, 4).
         
-        print "STAGE:           " + stage:number at (0,6).
-        print "STAGE DELTA-V:   " + stage:deltav at (0,7).
-        print "MAX THRUST:      " + ship:maxthrust at (0,8).
-        print "ALT:             " + ship:altitude at (0,9).
-        print "APOAPSIS:        " + ship:apoapsis at (0,10).
-        print "ASCENT ANGLE:    " + ascent_angle at (0,11).
-        print "PERIAPSIS:       " + alt:periapsis at (0, 12).
-        print "ETA TO APOAPSIS: " + eta:apoapsis at (0,13).
-        print "PRESSURE:        " + ship:dynamicpressure at (0, 14).
+        output("ALTITUDE", ship:altitude, 6).
+        output("APOAPSIS", ship:apoapsis, 7).
+        output("ASCENT ANGLE", ascent_angle, 8).
+        output("PERIAPSIS", ship:periapsis, 9).
+        output("ETA TO APOAPSIS", eta:apoapsis, 10).
+        output("PRESSURE", ship:dynamicpressure, 11).
 
         // 1. Get height above the base / start altitude.
         // 2. Divide that by the difference between base and target to get the percentage of
@@ -82,17 +79,15 @@ function complete_orbit {
     // Wait until we exit atmo, if necessary
     until ship:dynamicpressure = 0 {
         print "LEAVING ATMO" at (0, 4).
-        print "ALT:           " + ship:altitude at (0, 6).
-        print "ORBIT SPD:     " + orbit_speed at (0, 7).
-        print "APOAPSIS:      " + ship:apoapsis at (0, 8).
+        output("ALTITUDE", ship:altitude, 6).
+        output("APOAPSIS", ship:apoapsis, 7).
+        output("ORBIT SPD", orbit_speed, 8).
     }
 
     // Calculate burn required
     local tar_alt to ship:apoapsis.
     local target_speed to sqrt(ship:body:mu / (tar_alt + ship:body:radius)).
-    print "Target speed is " + target_speed:tostring.
-    print "Current speed is " + orbit_speed.
-
+    
     // Aim at the horizon
     log_event("Leaving atmosphere, aiming at horizon for circularization in " + eta:apoapsis + "s.").
     local ascent_angle to 0.
@@ -104,43 +99,95 @@ function complete_orbit {
     // Calculate burn
     lock deltav_req to target_speed - orbit_speed.
     local current_accel to ship:availableThrust / ship:mass.
-    local burn_time to deltav_req / current_accel.
+    local burn_time to (deltav_req / current_accel) + 10. // Start early
+    
     if stage:deltav:current < deltav_req {
         log_error("Stage does not have enough deltaV to circularize, adding 20s.").
         set burn_time to burn_time + 20.
         // TODO: Account for next stage here.
     }
 
-    // TODO: This currently stops a bit before periapsis leaves the atmo. It also doesn't really circularize. So maybe we just
-    // need a final "bring periapsis up to current alt" kind of deal? R: how do other people circularize their scripts?
+    add_alarm_if("Orbital burn", eta:apoapsis - (burn_time / 2), 25).
+
     until deltav_req <= 0 {
 
-        // TODO: Add special case: if ship:altitude < atmo:height, we are dipping. keep burning
-        // until apoapsis is higher, wait until apoapsis, THEN burn to circularize. We have to account
-        // for the switch!
-        if eta:apoapsis < (burn_time / 2) OR verticalSpeed < 0 {
+        if eta:apoapsis < (burn_time / 2) {
             set tar_throttle to 1.0.
             if verticalSpeed < 0 {
                 set ascent_angle to 5.
             }
+            clear_line(5).
         } else {
-            set tar_throttle to 0.0.
+            output ("BURN ETA:", eta:apoapsis - (burn_time / 2), 5).
         }
+
         stage_if_empty().
 
         print "PARAMS:          BEARING is " + bearing at (0, 4).
         
-        print "DELTA-V LEFT:    " + deltav_req at (0,6).
-
-        print "STAGE DELTA-V:   " + stage:deltav:current at (0,8).
-        print "ALT:             " + ship:altitude at (0,9).
-        print "APOAPSIS:        " + ship:apoapsis at (0,10).
-        print "ETA TO APOAPSIS: " + eta:apoapsis at (0,11).
-        print "PERIAPSIS:       " + alt:periapsis at (0, 12).
+        output("DELTA-V LEFT", deltav_req, 6).
+        
+        output("ALTITUDE", ship:altitude, 7).
+        output("APOAPSIS", ship:apoapsis, 8).
+        output("PERIAPSIS", ship:periapsis, 9).
+        output("ETA TO APOAPSIS", eta:apoapsis, 10).
         
         wait 0.1.
     }
 
+    clearScreen.
+    
+    local atmo to ship:body:atm.
+    if (atmo:exists) {
+        print "CLEARING ATMO" at (0, 1).
+        print "------------" at (0, 2).
+        
+        until ship:periapsis >= atmo:height {
+            output("ATMO", atmo:height, 4).
+            output("ALTITUDE", ship:altitude, 5).
+            output("APOAPSIS", ship:apoapsis, 6).
+            output("PERIAPSIS", ship:periapsis, 7).
+        }
+    }
+
+    // Wait for apoapsis 
+    local circ_orbit_speed to sqrt(ship:body:mu / (ship:apoapsis + ship:body:radius)).
+    lock deltav_req to circ_orbit_speed - orbit_speed.
+    local current_accel to ship:availableThrust / ship:mass.
+    lock circ_burn_time to (deltav_req / current_accel) + 10.
+    set tar_throttle to 0.
+
+    print "CIRCULARIZING" at (0, 1).
+    print "------------" at (0, 2).
+
+    add_alarm_if("Orbital burn", eta:apoapsis - (circ_burn_time / 2), 25).
+
+    until deltav_req <= 0 {
+
+        if eta:apoapsis < (circ_burn_time / 2) {
+            set tar_throttle to 1.0.
+            if verticalSpeed < 0 {
+                set ascent_angle to 5.
+            }
+            clear_line(5).
+        } else {
+            output ("BURN ETA:", eta:apoapsis - (circ_burn_time / 2), 5).
+        }
+
+        stage_if_empty().
+
+        print "PARAMS:          BEARING is " + bearing at (0, 4).
+        
+        output("DELTA-V LEFT", deltav_req, 6).
+        
+        output("ALTITUDE", ship:altitude, 7).
+        output("APOAPSIS", ship:apoapsis, 8).
+        output("PERIAPSIS", ship:periapsis, 9).
+        output("ETA TO APOAPSIS", eta:apoapsis, 10).
+        
+        wait 0.1.
+    }
+    
     // clearScreen.
     print "Orbit achieved.".
     print "Apoapsis: " + alt:apoapsis.
@@ -201,15 +248,12 @@ function ascend_solids {
     until maxThrust = 0 {
 
         print "PARAMS:          BEARING IS " + bearing at (0, 4).
-        
-        print "STAGE:           " + stage:number at (0,6).
-        print "STAGE DELTA-V:   " + stage:deltav at (0,7).
-        print "MAX THRUST:      " + ship:maxthrust at (0,8).
-        print "ALT:             " + ship:altitude at (0,9).
-        print "APOAPSIS:        " + ship:apoapsis at (0,10).
-        print "ETA TO APOAPSIS: " + eta:apoapsis at (0,12).
-        print "PRESSURE:        " + ship:dynamicpressure at (0, 13).
 
+        output("ALT", ship:altitude, 6).
+        output("APOAPSIS", ship:apoapsis, 7).
+        output("ETA TO APOAPSIS", eta:apoapsis, 8).
+        output("PRESSURE", ship:dynamicpressure, 9).
+        
         wait 0.1.
     }
 
