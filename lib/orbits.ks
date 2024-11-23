@@ -59,6 +59,7 @@ function ascend {
     }
 
     clearScreen.
+    lock throttle to 0.
     print("Ascent stage ended; apoapsis now at " + ship:apoapsis).
 }
 
@@ -76,6 +77,7 @@ function complete_orbit {
     print "------------" at (0, 2).
 
     lock orbit_speed to ship:velocity:orbit:mag.
+    lock throttle to 0.
 
     // Wait until we exit atmo, if necessary
     until ship:dynamicpressure = 0 {
@@ -86,8 +88,10 @@ function complete_orbit {
     }
 
     // Calculate burn required
-    local tar_alt to apoapsis:altitude.
+    local tar_alt to ship:apoapsis.
     local target_speed to sqrt(ship:body:mu / (tar_alt + ship:body:radius)).
+    print "Target speed is " + target_speed:tostring.
+    print "Current speed is " + orbit_speed.
 
     // Aim at the horizon
     log_event("Leaving atmosphere, aiming at horizon for circularization in " + eta:apoapsis + "s.").
@@ -98,15 +102,17 @@ function complete_orbit {
     lock throttle to tar_throttle.
 
     // Calculate burn
-    lock deltav_req to orbit_speed - target_speed.
+    lock deltav_req to target_speed - orbit_speed.
     local current_accel to ship:availableThrust / ship:mass.
     local burn_time to deltav_req / current_accel.
-    if stage:deltav < deltav_req {
+    if stage:deltav:current < deltav_req {
         log_error("Stage does not have enough deltaV to circularize, adding 20s.").
         set burn_time to burn_time + 20.
         // TODO: Account for next stage here.
     }
 
+    // TODO: This currently stops a bit before periapsis leaves the atmo. It also doesn't really circularize. So maybe we just
+    // need a final "bring periapsis up to current alt" kind of deal? R: how do other people circularize their scripts?
     until deltav_req <= 0 {
 
         // TODO: Add special case: if ship:altitude < atmo:height, we are dipping. keep burning
@@ -126,7 +132,7 @@ function complete_orbit {
         
         print "DELTA-V LEFT:    " + deltav_req at (0,6).
 
-        print "STAGE DELTA-V:   " + stage:deltav at (0,8).
+        print "STAGE DELTA-V:   " + stage:deltav:current at (0,8).
         print "ALT:             " + ship:altitude at (0,9).
         print "APOAPSIS:        " + ship:apoapsis at (0,10).
         print "ETA TO APOAPSIS: " + eta:apoapsis at (0,11).
@@ -135,11 +141,11 @@ function complete_orbit {
         wait 0.1.
     }
 
-    clearScreen.
+    // clearScreen.
     print "Orbit achieved.".
     print "Apoapsis: " + alt:apoapsis.
     print "Periapsis: " + alt:periapsis.
-    print "Remaining delta-v: " + ship:deltav.
+    print "Remaining delta-v: " + ship:deltav:current.
 
     unlock deltav_req.
     unlock orbit_speed.

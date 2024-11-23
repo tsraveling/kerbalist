@@ -1,3 +1,5 @@
+@lazyGlobal off.
+
 // download(): will download a file from the mainframe
 function download {
     parameter filePath.
@@ -84,23 +86,47 @@ function call_control {
     return true.
 }
 
+// Bind the RPM console buttons to a function
+function bind_buttons {
+    parameter del is donothing.
+
+    global buttons to addons:kpm:buttons.
+    local monitors to addons:kpm:getmonitorcount().
+
+    FROM {local x is 0.} UNTIL x = monitors STEP {set x to x+1.} DO {
+        set buttons:currentmonitor to x.
+        FROM {local y is -6.} UNTIL y=12 STEP {set y to y+1.} DO {
+            buttons:setdelegate(y,del:BIND(y)).
+        }
+    }
+}
+
+local clear_line to "                                    ".
+
 // This will display at the bottom of the log screen.
 function log_event {
     parameter msg.
-    parameter domain to "GLOBAL".
-    
-    print ":=================================:" at (0, 23).
-    print domain at (5, 23).
-    print msg at (0, 24).
+    print "clear_line" at (0, 18).
+    print "[#FFFF00]" + msg at (0, 18).
 }
 
 // This will log an error at the bottom of the log screen
 function log_error {
     parameter msg.
-    
-    print "!!!!===========ERROR===========!!!!" at (0, 21).
-    print msg at (0, 22).
+    print "clear_line" at (0, 18).
+    print "[#FF0000]" + msg at (0, 18).
 }
 
-// Terminal setup
-set terminal:height to 24.
+// This will log an error at the bottom of the log screen
+function log_win {
+    parameter msg.
+    print "clear_line" at (0, 18).
+    print "[#99FF00]" + msg at (0, 18).
+}
+
+function wait_for_go {
+    clearScreen.
+    set AG10 to true.
+    print "[#FFFFFF]WAIT FOR GO." at (5, 1).
+    wait until not AG10.
+}

@@ -22,7 +22,7 @@ if exists("0:/" + auto_file) and ship:status = "PRELAUNCH" {
 
 // Check for commands (WILL RUN ONLY AFTER LAUNCH)
 local cmd_file to "cmd/" + ship:name + ".ks".
-if exists(cmd_file) {
+if exists("0:/" + cmd_file) {
     print("KSC command file found, transmitting ...").
 
     // Call the nearest control node, await signal delay, then fire code
