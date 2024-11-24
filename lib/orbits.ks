@@ -150,6 +150,8 @@ function complete_orbit {
         }
     }
 
+    clearScreen.
+
     // Wait for apoapsis 
     local circ_orbit_speed to sqrt(ship:body:mu / (ship:apoapsis + ship:body:radius)).
     lock deltav_req to circ_orbit_speed - orbit_speed.
@@ -232,6 +234,8 @@ function raise_orbit {
     until periapsis >= tar_alt {
         stage_if_empty().
     }
+    unlock throttle.
+    unlock steering.
 }
 
 function ascend_solids {
