@@ -64,7 +64,6 @@ function get_btn {
     if btn > -10 {
         local ret to btn.
         set btn to -10.
-        print ret + "   " at (4, 11).
         return ret.
     }
     return -10.
@@ -75,7 +74,6 @@ global buttons to addons:kpm:buttons.
 local monitors to addons:kpm:getmonitorcount().
 global bh to {
     parameter i.
-    print i + "   " at (4, 10).
     set btn to i.
 }.
 
@@ -84,6 +82,55 @@ FROM {local x is 0.} UNTIL x = monitors STEP {set x to x+1.} DO {
     FROM {local y is -6.} UNTIL y=12 STEP {set y to y+1.} DO {
         buttons:setdelegate(y,bh:BIND(y)).
     }
+}
+
+// MENU PICKING SYSTEM //
+
+global pick_index to 0.
+global pick_end to 0.
+global picklist_x to 0.
+global picklist_y to 0.
+
+function init_picklist {
+    parameter options.
+    parameter x, y.
+    set pick_index to 0.
+    set picklist_x to x.
+    set picklist_y to y.
+    set pick_end to options:length - 1.
+
+    local l to 0.
+    for opt in options {
+        print opt at (x+2, l+y).
+        set l to l + 1.
+    }
+
+    // Print opening carat
+    print "> " at (x, y).
+}
+
+function get_picklist {
+    parameter button. // Pass this in from the loop to make the input work across the board
+    local prev to pick_index.
+    if button = BTN_UP {
+        set pick_index to pick_index - 1.
+    } else if button = BTN_DOWN {
+        set pick_index to pick_index + 1.
+    }
+    if pick_index < 0 {
+        set pick_index to pick_end.
+    }
+    if pick_index > pick_end {
+        set pick_index to 0.
+    }
+    if prev <> pick_index {
+        print "  " at (picklist_x, picklist_y + prev).
+        print "> " at (picklist_x, picklist_y + pick_index).
+    }
+    if button = BTN_ENTER {
+        return pick_index.
+    }
+    return -1.
 }
 
 //////////////
@@ -105,6 +152,8 @@ print_c("STATUS: " + ship:status, 4).
 print_btn(BTN_ENTER, "ENTER").
 print_btn(6, "EXIT").
 
+init_picklist(list("First one", "Second one", "Third one"), 5, 5).
+
 until AG9 {
     local b to get_btn().
     if b = BTN_ENTER {
@@ -113,4 +162,10 @@ until AG9 {
     if b = BTN_CANCEL {
         print_c("YOU HIT CANCEL!", 6).
     }
+
+    local lp to get_picklist(b).
+    if lp >= 0 {
+        print_c("YOU PICKED " + lp, 6).
+    }
+    wait 0.1.
 }
